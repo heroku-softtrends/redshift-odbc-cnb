@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -e
+
+# Define buildpack directory
+BUILDPACK_DIR=$(cd "$(dirname "$0")/.." && pwd)
+BUILD_DIR="$1"
+LAYER_DIR="${BUILD_DIR}/redshift_odbc"
+
+mkdir -p "${LAYER_DIR}/etc/lib"
+mkdir -p "${LAYER_DIR}/env"
+
+arrow() {
+  echo '----->' "$@"
+}
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+arrow "Installing Redshift ODBC driver..."
+
+# Ensure the files directory exists
+if [ ! -d "${BUILDPACK_DIR}/files" ]; then
+  arrow "ERROR: Missing 'files/' directory. Ensure buildpack includes necessary files."
+  exit 1
+fi
+
+# Copy required files
+cp "${BUILDPACK_DIR}/files/libamazonredshiftodbc64.so" "${LAYER_DIR}/etc/lib/" | indent
+cp "${BUILDPACK_DIR}/files/AmazonRedshiftODBC.did" "${LAYER_DIR}/etc/lib/" | indent
+cp "${BUILDPACK_DIR}/files/root.crt" "${LAYER_DIR}/etc/lib/" | indent
+
+cp "${BUILDPACK_DIR}/files/odbc.ini" "${LAYER_DIR}/etc/" | indent
+cp "${BUILDPACK_DIR}/files/odbcinst.ini" "${LAYER_DIR}/etc/" | indent
+cp "${BUILDPACK_DIR}/files/amazon.redshiftodbc.ini" "${LAYER_DIR}/etc/" | indent
+
+# Setup runtime environment variables
+echo "${LAYER_DIR}/etc/odbc.ini" > "${LAYER_DIR}/env/ODBCINI"
+echo "${LAYER_DIR}/etc/odbcinst.ini" > "${LAYER_DIR}/env/ODBCINSTINI"
+echo "${LAYER_DIR}/etc/amazon.redshiftodbc.ini" > "${LAYER_DIR}/env/AMAZON_REDSHIFT_ODBCINI"
+
+arrow "Redshift ODBC driver installed successfully."
+
+# Write layer metadata
+cat <<EOF > "${LAYER_DIR}.toml"
+[types]
+build = false
+launch = true
+cache = false
+EOF
