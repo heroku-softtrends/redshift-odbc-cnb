@@ -1,9 +1,10 @@
 api = "0.8"
 
 [buildpack]
-id = "heroku/redshift-odbc"
+id = "heroku-softtrends/redshift-odbc"
 version = "1.0.0"
 name = "Redshift ODBC Buildpack"
+homepage = "https://github.com/heroku-softtrends/redshift-odbc-cnb"
 
 [[stacks]]
 id = "*"  # Allows compatibility with all stacks
