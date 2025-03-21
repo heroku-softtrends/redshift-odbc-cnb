@@ -1,25 +1,51 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
 set -euo pipefail
 
-YQ_BUILD_DIR="${CNB_LAYERS_DIR}/yq"
-YQ_VERSION="${YQ_VERSION:-4.44.3}"
-YQ_URL="https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${CNB_TARGET_ARCH}.tar.gz"
+# Define buildpack directory
+BUILDPACK_DIR=$(cd "$(dirname "$0")/.." && pwd)
+BUILD_DIR="$1"
+LAYER_DIR="${BUILD_DIR}/redshift_odbc"
 
-if [[ -f "$YQ_BUILD_DIR/yq-version" ]] && grep -q "$YQ_VERSION" "$YQ_BUILD_DIR/yq-version" ; then
-  echo "Using yq $YQ_VERSION from cache"
-  exit 0;
+mkdir -p "${LAYER_DIR}/etc/lib"
+mkdir -p "${LAYER_DIR}/env"
+
+arrow() {
+  echo '----->' "$@"
+}
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+arrow "Installing Redshift ODBC driver..."
+
+# Ensure the files directory exists
+if [ ! -d "${BUILDPACK_DIR}/files" ]; then
+  arrow "ERROR: Missing 'files/' directory. Ensure buildpack includes necessary files."
+  exit 1
 fi
 
-echo "Downloading yq $YQ_VERSION from $YQ_URL"
-rm -rf "${YQ_BUILD_DIR}"
-mkdir -p "${YQ_BUILD_DIR}"
-curl -sSf --location --retry 3 --retry-connrefused --connect-timeout 10 "${YQ_URL}" | tar -zx -C "${YQ_BUILD_DIR}"
-mkdir -p "${YQ_BUILD_DIR}/bin"
-mv "${YQ_BUILD_DIR}/yq_linux_${CNB_TARGET_ARCH}" "${YQ_BUILD_DIR}/bin/yq"
-printf "%s" "$YQ_VERSION" > "${YQ_BUILD_DIR}/yq-version"
-cat > "${YQ_BUILD_DIR}.toml" << EOL
+# Copy required files
+cp "${BUILDPACK_DIR}/files/libamazonredshiftodbc64.so" "${LAYER_DIR}/etc/lib/" | indent
+cp "${BUILDPACK_DIR}/files/AmazonRedshiftODBC.did" "${LAYER_DIR}/etc/lib/" | indent
+cp "${BUILDPACK_DIR}/files/root.crt" "${LAYER_DIR}/etc/lib/" | indent
+
+cp "${BUILDPACK_DIR}/files/odbc.ini" "${LAYER_DIR}/etc/" | indent
+cp "${BUILDPACK_DIR}/files/odbcinst.ini" "${LAYER_DIR}/etc/" | indent
+cp "${BUILDPACK_DIR}/files/amazon.redshiftodbc.ini" "${LAYER_DIR}/etc/" | indent
+
+# Setup runtime environment variables
+echo "${LAYER_DIR}/etc/odbc.ini" > "${LAYER_DIR}/env/ODBCINI"
+echo "${LAYER_DIR}/etc/odbcinst.ini" > "${LAYER_DIR}/env/ODBCINSTINI"
+echo "${LAYER_DIR}/etc/amazon.redshiftodbc.ini" > "${LAYER_DIR}/env/AMAZON_REDSHIFT_ODBCINI"
+
+arrow "Redshift ODBC driver installed successfully."
+
+# Write layer metadata
+cat <<EOF > "${LAYER_DIR}.toml"
 [types]
 build = true
-cache = true
 launch = true
-EOL
+cache = true
+EOF
