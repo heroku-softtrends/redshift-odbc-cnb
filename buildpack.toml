@@ -5,14 +5,16 @@ id = "heroku-softtrends/redshift-odbc"
 version = "0.0.1"
 name = "Redshift ODBC Buildpack"
 homepage = "https://github.com/heroku-softtrends/redshift-odbc-cnb"
+[[buildpack.licenses]]
+type = "BSD-3-Clause"
 
 [[stacks]]
-id = "*"  # Allows compatibility with all stacks
+id = "*"
 
 [[targets]]
 os = "linux"
-arch = "amd64"
+arch = "arm64"
 
 [[targets]]
-os = "windows"
+os = "linux"
 arch = "amd64"
